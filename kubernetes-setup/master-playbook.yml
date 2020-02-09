@@ -2,6 +2,7 @@
 - hosts: all
   become: true
   tasks:
+
     - name: Install packages that allow apt to be used over HTTPS
       apt:
         name: "{{ packages }}"
@@ -14,7 +15,7 @@
           - curl
           - gnupg-agent
           - software-properties-common
-
+    
     - name: Add an apt signing key for Docker
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
@@ -80,7 +81,7 @@
 
     - name: Configure node ip
       lineinfile:
-        path: /etc/default/kubelet
+        path: /usr/bin/kubelet
         line: KUBELET_EXTRA_ARGS=--node-ip={{ node_ip }}
 
     - name: Restart kubelet
@@ -98,15 +99,22 @@
         - mkdir -p /home/vagrant/.kube
         - cp -i /etc/kubernetes/admin.conf /home/vagrant/.kube/config
         - chown vagrant:vagrant /home/vagrant/.kube/config
+
+    - name: Copy kube-config files to localhost
+      fetch:
+        src: /home/vagrant/.kube/config
+        dest: kube-config
+    
     - name: Install calico pod network
       become: false
-      command: kubectl create -f https://docs.projectcalico.org/v3.4/getting-started/kubernetes/installation/hosted/calico.yaml
+      command: kubectl create -f https://docs.projectcalico.org/v3.11/manifests/calico.yaml
 
     - name: Generate join command
       command: kubeadm token create --print-join-command
       register: join_command
 
     - name: Copy join command to local file
+      become: false
       local_action: copy content="{{ join_command.stdout_lines[0] }}" dest="./join-command"
 
   handlers:
